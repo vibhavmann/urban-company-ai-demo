@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Urban Company · Smart Diagnosis & Quote</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #94A3B8; min-height: 100vh; display: flex; align-items: center; justify-content: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .phone { box-shadow: 0 40px 80px rgba(0,0,0,0.35), 0 0 0 1.5px rgba(0,0,0,0.15), inset 0 0 0 1px rgba(255,255,255,0.1); }
+    .scroll-hide { overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .scroll-hide::-webkit-scrollbar { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse-ring { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+    .spinner { animation: spin 0.8s linear infinite; }
+    .pulse { animation: pulse-ring 1.4s ease-in-out infinite; }
+    @keyframes slide-up { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .slide-up { animation: slide-up 0.35s cubic-bezier(0.34,1.56,0.64,1) both; }
+    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+    .fade-in { animation: fade-in 0.2s ease both; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef, useEffect, useCallback, useMemo } = React;
+
+/* ─── BRAND ─────────────────────────────────────────── */
+const G   = "#0B6E4F";
+const GD  = "#09553C";
+const BG  = "#F6F6F6";
+
+/* ─── SERVICE CATALOG ───────────────────────────────── */
+const CATALOG = [
+  {
+    category: "AC & Appliance", icon: "❄️", color: "#E0F2FE",
+    services: [
+      { name: "AC Service", variants: ["Split AC", "Window AC"],
+        basePrice: 599, priceRange: [599, 899],
+        description: "Routine clean & check",
+        addons: [{ name: "Deep filter cleaning", price: 150 }, { name: "Coil sanitisation", price: 200 }, { name: "PCB inspection", price: 300 }] },
+      { name: "AC Repair", variants: ["Compressor fault", "PCB fault", "Fan motor fault"],
+        basePrice: 399, priceRange: [399, 4500],
+        description: "Visit fee + parts",
+        addons: [{ name: "Compressor replacement", price: 3500 }, { name: "PCB replacement", price: 2500 }, { name: "Fan motor replacement", price: 1200 }, { name: "Capacitor replacement", price: 400 }] },
+      { name: "AC Gas Refill", variants: ["R22 gas", "R32 gas", "R410A gas"],
+        priceRange: [2200, 3500],
+        description: "Refrigerant refill + leak check",
+        addons: [{ name: "Leak detection & sealing", price: 500 }, { name: "Extra 100g gas", price: 400 }] },
+    ]
+  },
+  {
+    category: "Plumbing", icon: "🔧", color: "#FEF3C7",
+    services: [
+      { name: "Tap / Leak Fix", variants: ["Tap repair", "Minor pipe joint", "Under-sink seal"],
+        basePrice: 199, priceRange: [199, 750],
+        description: "Visit fee + parts",
+        addons: [{ name: "Tap replacement (basic)", price: 350 }, { name: "Tap replacement (premium)", price: 800 }, { name: "Sealant & fittings", price: 150 }] },
+      { name: "Pipe Repair", variants: ["Under-sink pipe", "Wall pipe", "Overhead pipe"],
+        priceRange: [499, 1800],
+        description: "Depends on access & pipe length",
+        addons: [{ name: "PVC pipe materials (per ft)", price: 80 }, { name: "Wall opening & closing", price: 600 }, { name: "Emergency surcharge", price: 250 }] },
+      { name: "Drain Unclog", variants: ["Kitchen drain", "Bathroom drain", "Toilet blockage"],
+        basePrice: 299, priceRange: [299, 1100],
+        description: "Manual + jetting",
+        addons: [{ name: "Chemical jetting", price: 400 }, { name: "CCTV pipe inspection", price: 800 }] },
+    ]
+  },
+  {
+    category: "Cleaning", icon: "🧹", color: "#F0FDF4",
+    services: [
+      { name: "Bathroom Deep Clean", variants: ["Single bathroom", "2 bathrooms", "3+ bathrooms"],
+        priceRange: [449, 950],
+        addons: [{ name: "Grout scrubbing", price: 150 }, { name: "Exhaust fan cleaning", price: 100 }] },
+      { name: "Kitchen Deep Clean", variants: ["Basic", "With chimney", "Full modular kitchen"],
+        priceRange: [699, 1499],
+        addons: [{ name: "Chimney cleaning", price: 400 }, { name: "Cabinet interior wipe", price: 200 }] },
+      { name: "Full Home Deep Clean", variants: ["1 BHK", "2 BHK", "3 BHK", "4 BHK"],
+        priceRange: [1999, 5499],
+        addons: [{ name: "Balcony cleaning", price: 300 }, { name: "Window panel cleaning", price: 150 }] },
+      { name: "Sofa / Carpet Cleaning", variants: ["2-seater sofa", "3-seater sofa", "L-shape sofa", "Carpet (per sq ft)"],
+        priceRange: [499, 2499],
+        addons: [{ name: "Stain treatment", price: 300 }, { name: "Anti-bacterial spray", price: 200 }] },
+    ]
+  },
+  {
+    category: "Beauty", icon: "💅", color: "#FDF4FF",
+    services: [
+      { name: "Salon at Home", variants: ["Women's haircut", "Men's haircut", "Blow-dry", "Hair spa"],
+        priceRange: [349, 999],
+        addons: [{ name: "Hair mask treatment", price: 250 }, { name: "Scalp massage", price: 150 }] },
+      { name: "Facial & Glow Treatment", variants: ["Basic cleanup", "Gold facial", "Hydrating facial", "De-tan pack"],
+        priceRange: [499, 1499],
+        addons: [{ name: "Eyebrow threading", price: 70 }, { name: "Upper lip", price: 50 }, { name: "Neck massage", price: 150 }] },
+      { name: "Pre-Event Package", variants: ["Bridal glow", "Party makeup", "Mehendi application"],
+        priceRange: [1999, 6999],
+        addons: [{ name: "False lashes", price: 300 }, { name: "HD foundation upgrade", price: 400 }, { name: "Hair styling", price: 599 }] },
+    ]
+  },
+  {
+    category: "Electrician", icon: "⚡", color: "#FFFBEB",
+    services: [
+      { name: "Fault Finding & Repair", variants: ["Short circuit", "Tripping MCB", "Power point fault"],
+        basePrice: 249, priceRange: [249, 1200],
+        addons: [{ name: "Wiring replacement (per metre)", price: 60 }, { name: "MCB replacement", price: 350 }, { name: "Emergency surcharge", price: 200 }] },
+      { name: "Fixture Installation", variants: ["Ceiling fan", "Light fitting", "Switch / socket", "Geyser"],
+        priceRange: [199, 599],
+        addons: [{ name: "Conduit & casing", price: 150 }, { name: "Extra wiring (5m)", price: 200 }] },
+    ]
+  },
+  {
+    category: "Pest Control", icon: "🪲", color: "#FFF7ED",
+    services: [
+      { name: "General Pest Control", variants: ["1 BHK", "2 BHK", "3 BHK"],
+        priceRange: [699, 1499],
+        addons: [{ name: "Cockroach gel bait", price: 300 }, { name: "Bed bug treatment", price: 1200 }] },
+      { name: "Termite Control", variants: ["Pre-construction", "Post-construction (per room)"],
+        priceRange: [1499, 4999],
+        addons: [{ name: "Soil treatment", price: 2000 }, { name: "Warranty certificate", price: 500 }] },
+    ]
+  },
+];
+
+const CHIPS = [
+  { label: "Water pooling under sink", text: "Water is pooling under my kitchen sink — there's a puddle on the floor every morning" },
+  { label: "AC running but not cooling", text: "My AC runs all day but the room won't get cold at all, it's blowing warm air" },
+  { label: "Dull skin, wedding Saturday", text: "My skin looks dull and tired. I have a wedding this Saturday and need to look glowing and fresh" },
+  { label: "Bathroom looks really bad", text: "My bathroom looks really bad, not sure what it needs — could be cleaning or something else" },
+];
+
+/* ─── AI ENGINE ─────────────────────────────────────── */
+async function callDiagnosis(description, imgBase64, imgType, apiKey, clarification) {
+  const sys = `You are Urban Company's AI diagnosis engine. Given the user's problem and the service catalog JSON below, return ONLY a valid JSON object — no prose, no markdown fences.
+
+Schema (MUST match exactly):
+{
+  "service": "exact service name from catalog",
+  "variant": "specific variant if determinable, else empty string",
+  "why": "one plain-English sentence explaining why this service",
+  "addons": ["addon name from catalog that is likely needed"],
+  "severity": "low|medium|high",
+  "priceLow": <integer INR>,
+  "priceHigh": <integer INR>,
+  "priceBreakdown": "concise breakdown e.g. Visit ₹199 + tap ₹350 + fittings ₹150",
+  "confidence": "low|medium|high",
+  "needsClarification": <true|false>,
+  "clarifyingQuestion": "one short focused question if ambiguous, else empty string",
+  "clarifyingOptions": ["option1","option2","option3"] if question set, else []
+}
+
+Rules:
+- Match to the MOST SPECIFIC service and variant.
+- If problem could be 2+ very different services, set needsClarification:true and ask ONE question.
+- Price range MUST include likely add-ons/parts — never just echo base price if parts are probable.
+- severity: low=cosmetic/routine, medium=functional problem, high=urgent/safety risk.
+- confidence: how certain you are about the service match.
+- Return ONLY the JSON object. Nothing else.
+
+SERVICE CATALOG:
+${JSON.stringify(CATALOG, null, 2)}`;
+
+  const content = [];
+  if (imgBase64) {
+    content.push({ type: "image", source: { type: "base64", media_type: imgType || "image/jpeg", data: imgBase64 } });
+  }
+  content.push({ type: "text", text: clarification ? `${description}\n\nUser clarification: ${clarification}` : description });
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, system: sys, messages: [{ role: "user", content }] }),
+  });
+
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error?.message || `API error ${res.status}`);
+  }
+  const data = await res.json();
+  const raw = data.content.filter(b => b.type === "text").map(b => b.text).join("")
+    .replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+  return JSON.parse(raw);
+}
+
+/* ─── HELPERS ────────────────────────────────────────── */
+function serviceIcon(name = "") {
+  const s = name.toLowerCase();
+  if (s.includes("ac") || s.includes("appliance") || s.includes("gas")) return "❄️";
+  if (s.includes("plumb") || s.includes("tap") || s.includes("pipe") || s.includes("drain") || s.includes("leak")) return "🔧";
+  if (s.includes("clean") || s.includes("sofa") || s.includes("carpet") || s.includes("bathroom") || s.includes("kitchen")) return "🧹";
+  if (s.includes("beauty") || s.includes("facial") || s.includes("salon") || s.includes("event") || s.includes("glow") || s.includes("skin") || s.includes("makeup") || s.includes("pre-event") || s.includes("hair")) return "💅";
+  if (s.includes("electric") || s.includes("fault") || s.includes("install") || s.includes("fixture")) return "⚡";
+  if (s.includes("pest") || s.includes("termite")) return "🪲";
+  return "🔨";
+}
+
+function fmt(n) { return (n || 0).toLocaleString("en-IN"); }
+
+/* ─── SMALL COMPONENTS ───────────────────────────────── */
+function Badge({ children, variant = "gray" }) {
+  const cls = {
+    gray:   "bg-gray-100 text-gray-600",
+    green:  "bg-emerald-50 text-emerald-700",
+    yellow: "bg-amber-50 text-amber-700",
+    red:    "bg-red-50 text-red-600",
+    blue:   "bg-blue-50 text-blue-700",
+    purple: "bg-purple-50 text-purple-700",
+  }[variant] || "bg-gray-100 text-gray-600";
+  return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${cls}`}>{children}</span>;
+}
+
+function BottomNav({ active = "home" }) {
+  const items = [
+    { id: "home", icon: "🏠", label: "Home" },
+    { id: "bookings", icon: "📋", label: "Bookings" },
+    { id: "explore", icon: "🔍", label: "Explore" },
+    { id: "account", icon: "👤", label: "Account" },
+  ];
+  return (
+    <div className="flex border-t border-gray-100 bg-white flex-shrink-0">
+      {items.map(it => (
+        <button key={it.id} className={`flex-1 flex flex-col items-center py-2.5 gap-0.5 ${active === it.id ? `font-semibold` : "text-gray-400"}`}
+          style={active === it.id ? { color: G } : {}}>
+          <span className="text-lg leading-none">{it.icon}</span>
+          <span className="text-[10px] font-medium">{it.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ─── SCREEN: API KEY ────────────────────────────────── */
+function ApiKeyScreen({ onSet }) {
+  const [k, setK] = useState("");
+  const valid = k.startsWith("sk-ant-") && k.length > 20;
+  return (
+    <div className="flex flex-col h-full bg-white">
+      <div className="flex-1 flex flex-col items-center justify-center px-6">
+        <div className="w-16 h-16 rounded-3xl mb-5 flex items-center justify-center text-3xl" style={{ background: G }}>
+          <span>🤖</span>
+        </div>
+        <h1 className="text-xl font-bold text-gray-900 mb-1 text-center">Smart Diagnosis</h1>
+        <p className="text-sm text-gray-500 text-center mb-1">Urban Company · AI Demo</p>
+        <p className="text-xs text-gray-400 text-center mb-7">
+          This demo calls the real Claude API.<br />Enter your Anthropic API key to begin.
+        </p>
+        <div className="w-full mb-3">
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Anthropic API Key</label>
+          <input
+            type="password"
+            className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none transition-shadow"
+            style={{ fontFamily: "monospace" }}
+            placeholder="sk-ant-api03-..."
+            value={k}
+            onChange={e => setK(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && valid && onSet(k)}
+          />
+          {k && !valid && <p className="text-xs text-red-500 mt-1.5 ml-1">Must start with sk-ant-</p>}
+        </div>
+        <button
+          className="w-full py-3.5 rounded-2xl text-white font-semibold text-sm transition-opacity"
+          style={{ background: valid ? G : "#D1D5DB" }}
+          onClick={() => valid && onSet(k)}
+        >
+          Start Demo →
+        </button>
+        <p className="text-xs text-gray-400 mt-4 text-center">Key stays in your browser only. Never sent elsewhere.</p>
+      </div>
+    </div>
+  );
+}
+
+/* ─── SCREEN: HOME ───────────────────────────────────── */
+function HomeScreen({ onIntake }) {
+  return (
+    <div className="flex flex-col h-full" style={{ background: BG }}>
+      {/* top bar */}
+      <div className="bg-white px-4 pt-10 pb-3 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <p className="text-[10px] text-gray-400 mb-0.5 uppercase tracking-wide">Delivering to</p>
+            <div className="flex items-center gap-1">
+              <span className="text-sm font-bold text-gray-900">Koramangala, Bangalore</span>
+              <span className="text-gray-400 text-xs">▾</span>
+            </div>
+          </div>
+          <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-base">👤</div>
+        </div>
+      </div>
+
+      <div className="flex-1 scroll-hide px-4 pt-4 pb-4">
+        {/* hero / AI CTA */}
+        <div
+          className="rounded-3xl p-5 mb-5 cursor-pointer active:scale-[0.98] transition-transform"
+          style={{ background: `linear-gradient(135deg, ${G} 0%, #0F9B6E 100%)` }}
+          onClick={onIntake}
+        >
+          <div className="flex items-start gap-3">
+            <div className="flex-1">
+              <span className="inline-block bg-white/20 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full mb-2 tracking-wider">✨ NEW · AI POWERED</span>
+              <h2 className="text-white font-bold text-base leading-snug mb-1.5">Not sure what you need?<br />Describe it — we'll diagnose.</h2>
+              <p className="text-white/75 text-xs leading-relaxed mb-4">Get the right service + an honest price estimate before you book. No surprises on-site.</p>
+              <div className="inline-flex items-center gap-2 bg-white rounded-full px-3.5 py-2">
+                <span className="text-sm" style={{ color: G }}>🤖</span>
+                <span className="text-xs font-semibold" style={{ color: G }}>Diagnose my problem</span>
+                <span className="text-xs" style={{ color: G }}>→</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* category grid */}
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Services</p>
+        <div className="grid grid-cols-3 gap-3 mb-5">
+          {CATALOG.map(cat => (
+            <div
+              key={cat.category}
+              className="rounded-2xl p-3 flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform border border-white"
+              style={{ background: cat.color }}
+              onClick={onIntake}
+            >
+              <span className="text-2xl">{cat.icon}</span>
+              <span className="text-[11px] font-semibold text-gray-700 text-center leading-tight">{cat.category}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* featured */}
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Featured Today</p>
+        <div className="space-y-2.5">
+          {[
+            { name: "AC Service Summer Special", badge: "Starting ₹599", sub: "Split & window AC service. Beats the heat.", icon: "❄️", bg: "#E0F2FE" },
+            { name: "Home Deep Clean", badge: "Starting ₹1,999", sub: "100% satisfaction guaranteed.", icon: "🧹", bg: "#F0FDF4" },
+            { name: "Pre-Event Beauty", badge: "Starting ₹1,999", sub: "Glow up for your next big event.", icon: "💅", bg: "#FDF4FF" },
+          ].map(f => (
+            <div key={f.name} className="bg-white rounded-2xl p-4 flex items-center gap-3 border border-gray-100">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ background: f.bg }}>{f.icon}</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{f.name}</p>
+                  <Badge variant="green">{f.badge}</Badge>
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">{f.sub}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <BottomNav active="home" />
+    </div>
+  );
+}
+
+/* ─── SCREEN: INTAKE ─────────────────────────────────── */
+function IntakeScreen({ onBack, onDiagnose, error }) {
+  const [text, setText] = useState("");
+  const [img, setImg] = useState(null);
+  const [active, setActive] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef();
+
+  const pickChip = c => { setText(c.text); setActive(c.label); };
+
+  const handleFile = e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      const b64 = ev.target.result.split(",")[1];
+      setImg({ base64: b64, type: f.type, preview: ev.target.result });
+    };
+    r.readAsDataURL(f);
+  };
+
+  const go = async () => {
+    if (!text.trim() || busy) return;
+    setBusy(true);
+    await onDiagnose(text.trim(), img);
+    setBusy(false);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-white">
+      <div className="px-4 pt-10 pb-4 border-b border-gray-100 flex-shrink-0">
+        <button onClick={onBack} className="flex items-center gap-1 text-gray-400 text-sm mb-3">← Back</button>
+        <h1 className="text-lg font-bold text-gray-900">Smart Diagnosis</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Describe your problem — AI will find the right service</p>
+      </div>
+
+      <div className="flex-1 scroll-hide px-4 pt-4 pb-4 space-y-4">
+        <textarea
+          className="w-full border border-gray-200 rounded-2xl p-4 text-sm resize-none outline-none min-h-[110px] text-gray-900 placeholder-gray-400 transition-shadow focus:shadow-sm"
+          style={{ fontFamily: "inherit" }}
+          placeholder={"Describe your problem in your own words…\ne.g. "My AC runs but the room won't cool" or "Water pooling under my sink""}
+          value={text}
+          onChange={e => { setText(e.target.value); setActive(null); }}
+        />
+
+        <div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Try an example</p>
+          <div className="flex flex-wrap gap-2">
+            {CHIPS.map(c => (
+              <button
+                key={c.label}
+                onClick={() => pickChip(c)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${active === c.label ? "text-white border-transparent" : "border-gray-200 text-gray-600 bg-white"}`}
+                style={active === c.label ? { background: G } : {}}
+              >{c.label}</button>
+            ))}
+          </div>
+        </div>
+
+        <div
+          className="border-2 border-dashed border-gray-200 rounded-2xl p-4 flex flex-col items-center gap-2 cursor-pointer transition-colors hover:border-gray-300"
+          onClick={() => fileRef.current?.click()}
+        >
+          {img
+            ? <div className="relative w-full">
+                <img src={img.preview} alt="upload" className="w-full h-28 object-cover rounded-xl" />
+                <button className="absolute top-2 right-2 w-6 h-6 bg-black/50 rounded-full text-white text-xs flex items-center justify-center"
+                  onClick={e => { e.stopPropagation(); setImg(null); }}>✕</button>
+              </div>
+            : <>
+                <span className="text-2xl">📷</span>
+                <p className="text-xs text-gray-500 text-center">Tap to add a photo (optional)<br/>Helps the AI diagnose faster</p>
+              </>
+          }
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+
+        {error && (
+          <div className="bg-red-50 border border-red-100 rounded-2xl p-3 slide-up">
+            <p className="text-xs text-red-600">⚠️ {error}</p>
+          </div>
+        )}
+      </div>
+
+      <div className="px-4 pb-8 pt-3 border-t border-gray-100 flex-shrink-0">
+        <button
+          className="w-full py-4 rounded-2xl text-white font-semibold text-sm transition-all"
+          style={{ background: text.trim() && !busy ? G : "#D1D5DB" }}
+          onClick={go}
+          disabled={!text.trim() || busy}
+        >
+          {busy ? "Diagnosing…" : "Diagnose my problem ✨"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── SCREEN: LOADING ────────────────────────────────── */
+function LoadingScreen() {
+  const steps = ["Reading your description…", "Matching service catalog…", "Estimating realistic price…"];
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const t1 = setTimeout(() => setStep(1), 1300);
+    const t2 = setTimeout(() => setStep(2), 2700);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+  return (
+    <div className="flex flex-col h-full bg-white items-center justify-center px-8">
+      <div className="w-16 h-16 rounded-3xl mb-8 flex items-center justify-center text-3xl pulse" style={{ background: "#E8F5F0" }}>🤖</div>
+      <div className="w-full max-w-xs space-y-4">
+        {steps.map((s, i) => (
+          <div key={s} className={`flex items-center gap-3 transition-all duration-500 ${i <= step ? "opacity-100" : "opacity-25"}`}>
+            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 font-bold transition-all`}
+              style={i < step
+                ? { background: "#16A34A", color: "#fff" }
+                : i === step
+                  ? { border: `2px solid ${G}`, borderTopColor: "transparent" }
+                  : { border: "2px solid #E5E7EB" }}
+              className={i === step ? "spinner" : ""}
+            >
+              {i < step && "✓"}
+            </div>
+            <p className={`text-sm ${i <= step ? "text-gray-800" : "text-gray-400"}`}>{s}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── SCREEN: RESULT ─────────────────────────────────── */
+function ResultScreen({ result, onClarify, onBook, onBack }) {
+  const [clarifyAns, setClarifyAns] = useState(null);
+  const [openBA, setOpenBA] = useState(false);
+  const [openImpact, setOpenImpact] = useState(false);
+
+  if (result.needsClarification && !clarifyAns) {
+    return (
+      <div className="flex flex-col h-full bg-white">
+        <div className="px-4 pt-10 pb-4 border-b border-gray-100 flex-shrink-0">
+          <button onClick={onBack} className="text-gray-400 text-sm mb-3 block">← Back</button>
+          <h1 className="text-lg font-bold text-gray-900">One quick question</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Helps us give the right service & price</p>
+        </div>
+        <div className="flex-1 scroll-hide px-4 pt-6">
+          <div className="bg-gray-50 rounded-2xl p-5 mb-5 slide-up">
+            <span className="text-2xl block mb-3">🤔</span>
+            <p className="text-sm font-semibold text-gray-900 mb-1">{result.clarifyingQuestion}</p>
+            <p className="text-xs text-gray-500">Your answer lets us send the right pro</p>
+          </div>
+          <div className="flex flex-col gap-3">
+            {(result.clarifyingOptions || []).map((opt, i) => (
+              <button
+                key={opt}
+                className="w-full text-left py-3.5 px-4 rounded-2xl border text-sm font-medium text-gray-800 transition-all active:scale-[0.98]"
+                style={{ borderColor: "#E5E7EB", animationDelay: `${i * 60}ms` }}
+                onClick={() => { setClarifyAns(opt); onClarify(opt); }}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const sevColor = { low: "green", medium: "yellow", high: "red" }[result.severity] || "gray";
+  const confColor = { high: "green", medium: "yellow", low: "gray" }[result.confidence] || "gray";
+
+  return (
+    <div className="flex flex-col h-full" style={{ background: BG }}>
+      <div className="bg-white px-4 pt-10 pb-4 border-b border-gray-100 flex-shrink-0">
+        <button onClick={onBack} className="text-gray-400 text-sm mb-3 block">← Back</button>
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-bold text-gray-900">Diagnosis</h1>
+          <Badge variant={confColor}>{result.confidence === "high" ? "High" : result.confidence === "medium" ? "Medium" : "Low"} confidence</Badge>
+        </div>
+      </div>
+
+      <div className="flex-1 scroll-hide px-4 pt-3 pb-3 space-y-3">
+
+        {/* Service card */}
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 slide-up">
+          <div className="flex items-start gap-3 mb-3">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0" style={{ background: "#E8F5F0" }}>
+              {serviceIcon(result.service)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base font-bold text-gray-900 leading-tight">{result.service}</h2>
+              {result.variant && <p className="text-xs text-gray-500 mt-0.5">{result.variant}</p>}
+            </div>
+          </div>
+          <p className="text-sm text-gray-700 leading-relaxed mb-3">{result.why}</p>
+          <div className="flex flex-wrap gap-1.5">
+            <Badge variant={sevColor}>
+              {result.severity === "high" ? "🔴" : result.severity === "medium" ? "🟡" : "🟢"} {result.severity} severity
+            </Badge>
+            {(result.addons || []).slice(0, 3).map(a => <Badge key={a} variant="gray">{a}</Badge>)}
+          </div>
+        </div>
+
+        {/* Price band */}
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 slide-up" style={{ animationDelay: "60ms" }}>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Realistic Price Estimate</p>
+          <div className="flex items-baseline gap-1.5 mb-1">
+            <span className="text-2xl font-bold text-gray-900">₹{fmt(result.priceLow)}</span>
+            <span className="text-gray-400">–</span>
+            <span className="text-2xl font-bold text-gray-900">₹{fmt(result.priceHigh)}</span>
+          </div>
+          <p className="text-xs text-gray-500 mb-3 leading-relaxed">{result.priceBreakdown}</p>
+          <div className="bg-amber-50 rounded-xl px-3 py-2.5 flex items-start gap-2">
+            <span className="text-sm flex-shrink-0">⚠️</span>
+            <p className="text-xs text-amber-700 leading-relaxed">Final price confirmed on-site. This band accounts for likely parts & add-ons based on similar jobs.</p>
+          </div>
+        </div>
+
+        {/* Before / After */}
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden slide-up" style={{ animationDelay: "100ms" }}>
+          <button className="w-full flex items-center justify-between px-4 py-3.5" onClick={() => setOpenBA(!openBA)}>
+            <span className="text-sm font-semibold text-gray-900">Before vs. After AI Routing</span>
+            <span className="text-gray-400 text-sm transition-transform" style={{ display: "inline-block", transform: openBA ? "rotate(180deg)" : "none" }}>▾</span>
+          </button>
+          {openBA && (
+            <div className="px-3 pb-4 fade-in">
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="bg-red-50 rounded-xl p-3">
+                  <p className="text-[11px] font-bold text-red-600 mb-2.5">❌ Old Path</p>
+                  <div className="space-y-1.5">
+                    {["User guesses service","Picks wrong category","Pro arrives","Wrong job scoped","Price shock on-site","Dispute / refund","1-star review"].map(t => (
+                      <p key={t} className="text-[11px] text-red-700 leading-snug">{t}</p>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-emerald-50 rounded-xl p-3">
+                  <p className="text-[11px] font-bold text-emerald-700 mb-2.5">✅ New Path</p>
+                  <div className="space-y-1.5">
+                    {["User describes problem","AI routes correctly","Right pro dispatched","Honest price upfront","No surprises","First-visit success","5-star review"].map(t => (
+                      <p key={t} className="text-[11px] text-emerald-700 leading-snug">{t}</p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Impact metrics */}
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden slide-up" style={{ animationDelay: "140ms" }}>
+          <button className="w-full flex items-center justify-between px-4 py-3.5" onClick={() => setOpenImpact(!openImpact)}>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-gray-900">Impact Metrics</span>
+              <Badge variant="blue">Illustrative</Badge>
+            </div>
+            <span className="text-gray-400 text-sm transition-transform" style={{ display: "inline-block", transform: openImpact ? "rotate(180deg)" : "none" }}>▾</span>
+          </button>
+          {openImpact && (
+            <div className="px-3 pb-4 fade-in">
+              <div className="grid grid-cols-2 gap-2.5">
+                {[
+                  { val: "↓ 34%", label: "Mis-booking rate", bg: "bg-emerald-50", color: "text-emerald-700" },
+                  { val: "↑ 28%", label: "First-visit success", bg: "bg-emerald-50", color: "text-emerald-700" },
+                  { val: "↓ 41%", label: "Dispute rate", bg: "bg-blue-50", color: "text-blue-700" },
+                  { val: "₹280", label: "Saved / booking", bg: "bg-purple-50", color: "text-purple-700" },
+                ].map(m => (
+                  <div key={m.label} className={`${m.bg} rounded-xl p-3 text-center`}>
+                    <p className={`text-xl font-bold ${m.color}`}>{m.val}</p>
+                    <p className={`text-[10px] mt-0.5 ${m.color} opacity-80`}>{m.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="h-1" /> {/* bottom pad */}
+      </div>
+
+      <div className="px-4 pb-8 pt-3 bg-white border-t border-gray-100 flex-shrink-0">
+        <button
+          className="w-full py-4 rounded-2xl text-white font-semibold text-sm"
+          style={{ background: G }}
+          onClick={onBook}
+        >
+          Book {result.service} →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── SCREEN: BOOKING ────────────────────────────────── */
+function BookingScreen({ result, onBack, onConfirm }) {
+  const [slot, setSlot] = useState(null);
+  const slots = [
+    { day: "Today", time: "2:00 – 4:00 PM", ok: true },
+    { day: "Today", time: "5:00 – 7:00 PM", ok: false },
+    { day: "Tomorrow", time: "9:00 – 11:00 AM", ok: true },
+    { day: "Tomorrow", time: "11:00 AM – 1:00 PM", ok: true },
+    { day: "Sat 15 Jun", time: "10:00 AM – 12:00 PM", ok: true },
+  ];
+  return (
+    <div className="flex flex-col h-full bg-white">
+      <div className="px-4 pt-10 pb-4 border-b border-gray-100 flex-shrink-0">
+        <button onClick={onBack} className="text-gray-400 text-sm mb-3 block">← Back</button>
+        <h1 className="text-lg font-bold text-gray-900">Confirm Booking</h1>
+      </div>
+      <div className="flex-1 scroll-hide px-4 pt-4 pb-4 space-y-4">
+        <div className="bg-gray-50 rounded-2xl p-4">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Service</p>
+          <p className="text-sm font-bold text-gray-900">{result.service}{result.variant ? ` · ${result.variant}` : ""}</p>
+          <div className="flex items-baseline gap-1 mt-2">
+            <span className="font-bold text-base" style={{ color: G }}>₹{fmt(result.priceLow)}</span>
+            <span className="text-xs text-gray-400">– ₹{fmt(result.priceHigh)} est.</span>
+          </div>
+        </div>
+        <div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Saved Address</p>
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 flex items-start gap-3">
+            <span className="text-lg">📍</span>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Home</p>
+              <p className="text-xs text-gray-500 mt-0.5">42, 3rd Floor, 7th Cross, Koramangala 4th Block, Bangalore – 560034</p>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Choose a Slot</p>
+          <div className="space-y-2">
+            {slots.map((s, i) => (
+              <button
+                key={i}
+                disabled={!s.ok}
+                onClick={() => s.ok && setSlot(i)}
+                className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border text-sm transition-all ${!s.ok ? "opacity-40 cursor-not-allowed bg-gray-50 border-gray-100" : slot === i ? "border-transparent text-white" : "bg-white border-gray-100 text-gray-800"}`}
+                style={slot === i ? { background: G } : {}}
+              >
+                <span className={`font-semibold ${slot === i ? "text-white" : "text-gray-800"}`}>{s.day}</span>
+                <span className={`${slot === i ? "text-white/80" : "text-gray-500"}`}>{s.time}{!s.ok ? " · Full" : ""}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="px-4 pb-8 pt-3 bg-white border-t border-gray-100 flex-shrink-0">
+        <button
+          className="w-full py-4 rounded-2xl text-white font-semibold text-sm transition-all"
+          style={{ background: slot !== null ? G : "#D1D5DB" }}
+          onClick={() => slot !== null && onConfirm(slots[slot])}
+        >
+          Confirm Booking
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── SCREEN: SUCCESS ────────────────────────────────── */
+function SuccessScreen({ result, slot, onHome }) {
+  const [bid] = useState(() => "UC" + Math.floor(Math.random() * 90000 + 10000));
+  return (
+    <div className="flex flex-col h-full bg-white items-center justify-center px-6 text-center">
+      <div className="w-20 h-20 rounded-full bg-emerald-50 flex items-center justify-center text-4xl mb-5 slide-up">✅</div>
+      <h1 className="text-xl font-bold text-gray-900 mb-2 slide-up">Booking Confirmed!</h1>
+      <p className="text-sm text-gray-500 mb-6 leading-relaxed slide-up">
+        Your <strong>{result.service}</strong> is booked.<br />
+        {slot && `A pro will arrive ${slot.day}, ${slot.time}.`}
+      </p>
+      <div className="bg-gray-50 rounded-2xl p-4 w-full mb-6 text-left space-y-3 slide-up">
+        {[
+          { l: "Service", v: result.service },
+          { l: "Price estimate", v: `₹${fmt(result.priceLow)} – ₹${fmt(result.priceHigh)}`, green: true },
+          { l: "Booking ID", v: bid },
+          slot && { l: "Slot", v: `${slot.day}, ${slot.time}` },
+        ].filter(Boolean).map(row => (
+          <div key={row.l} className="flex justify-between text-sm gap-2">
+            <span className="text-gray-500 flex-shrink-0">{row.l}</span>
+            <span className="font-semibold text-right" style={row.green ? { color: G } : { color: "#1C1C1C" }}>{row.v}</span>
+          </div>
+        ))}
+      </div>
+      <button
+        className="w-full py-4 rounded-2xl text-white font-semibold text-sm slide-up"
+        style={{ background: G }}
+        onClick={onHome}
+      >Back to Home</button>
+    </div>
+  );
+}
+
+/* ─── APP ────────────────────────────────────────────── */
+function App() {
+  const [screen, setScreen] = useState("apikey");
+  const [apiKey, setApiKey] = useState("");
+  const [desc, setDesc] = useState("");
+  const [img, setImg] = useState(null);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+  const [bookedSlot, setBookedSlot] = useState(null);
+
+  const diagnose = async (text, image, clarification = null) => {
+    setDesc(text);
+    setImg(image);
+    setError(null);
+    setScreen("loading");
+    try {
+      const r = await callDiagnosis(text, image?.base64, image?.type, apiKey, clarification);
+      setResult(r);
+      setScreen("result");
+    } catch (e) {
+      setError(e.message || "Something went wrong. Please try again.");
+      setScreen("intake");
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center py-8 px-4">
+      {/* phone shell */}
+      <div
+        className="phone relative flex flex-col overflow-hidden"
+        style={{ width: 390, height: 844, borderRadius: 44, background: "#fff", flexShrink: 0 }}
+      >
+        {/* status bar */}
+        <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-7 pt-3 pointer-events-none">
+          <span className="text-xs font-semibold text-gray-800">9:41</span>
+          <div className="flex items-center gap-1.5 text-gray-700">
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><rect x="0" y="3" width="3" height="7" rx="1" fill="currentColor" opacity="0.4"/><rect x="4" y="2" width="3" height="8" rx="1" fill="currentColor" opacity="0.6"/><rect x="8" y="0" width="3" height="10" rx="1" fill="currentColor"/><rect x="12.5" y="3.5" width="1.5" height="3" rx="0.5" fill="currentColor" opacity="0.4"/></svg>
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><path d="M7 2C9.2 2 11.2 2.9 12.6 4.4L14 3C12.2 1.1 9.7 0 7 0C4.3 0 1.8 1.1 0 3L1.4 4.4C2.8 2.9 4.8 2 7 2Z" fill="currentColor"/><path d="M7 5C8.4 5 9.7 5.6 10.6 6.5L12 5.1C10.7 3.8 9 3 7 3C5 3 3.3 3.8 2 5.1L3.4 6.5C4.3 5.6 5.6 5 7 5Z" fill="currentColor"/><circle cx="7" cy="9" r="1.5" fill="currentColor"/></svg>
+            <svg width="22" height="10" viewBox="0 0 22 10" fill="none"><rect x="0.5" y="0.5" width="18" height="9" rx="2.5" stroke="currentColor" strokeOpacity="0.35"/><rect x="1.5" y="1.5" width="14" height="7" rx="1.5" fill="currentColor"/><path d="M20 3.5V6.5C20.8 6.2 21.5 5.5 21.5 5C21.5 4.5 20.8 3.8 20 3.5Z" fill="currentColor" opacity="0.4"/></svg>
+          </div>
+        </div>
+
+        {/* screen area */}
+        <div className="absolute inset-0 flex flex-col pt-10">
+          {screen === "apikey"  && <ApiKeyScreen onSet={k => { setApiKey(k); setScreen("home"); }} />}
+          {screen === "home"    && <HomeScreen onIntake={() => setScreen("intake")} />}
+          {screen === "intake"  && <IntakeScreen onBack={() => setScreen("home")} onDiagnose={diagnose} error={error} />}
+          {screen === "loading" && <LoadingScreen />}
+          {screen === "result"  && result && (
+            <ResultScreen
+              result={result}
+              onClarify={ans => diagnose(desc, img, ans)}
+              onBook={() => setScreen("booking")}
+              onBack={() => { setResult(null); setScreen("intake"); }}
+            />
+          )}
+          {screen === "booking" && result && (
+            <BookingScreen
+              result={result}
+              onBack={() => setScreen("result")}
+              onConfirm={s => { setBookedSlot(s); setScreen("success"); }}
+            />
+          )}
+          {screen === "success" && result && (
+            <SuccessScreen
+              result={result}
+              slot={bookedSlot}
+              onHome={() => { setResult(null); setBookedSlot(null); setError(null); setScreen("home"); }}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

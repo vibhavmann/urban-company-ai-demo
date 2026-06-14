@@ -473,13 +473,13 @@ function LoadingScreen() {
       <div className="w-full max-w-xs space-y-4">
         {steps.map((s, i) => (
           <div key={s} className={`flex items-center gap-3 transition-all duration-500 ${i <= step ? "opacity-100" : "opacity-25"}`}>
-            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 font-bold transition-all`}
+            <div
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0 font-bold transition-all${i === step ? " spinner" : ""}`}
               style={i < step
                 ? { background: "#16A34A", color: "#fff" }
                 : i === step
                   ? { border: `2px solid ${G}`, borderTopColor: "transparent" }
                   : { border: "2px solid #E5E7EB" }}
-              className={i === step ? "spinner" : ""}
             >
               {i < step && "✓"}
             </div>
